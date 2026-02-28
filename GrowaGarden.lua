@@ -1,16 +1,13 @@
 -- // ================================================
--- //   MUSTAFA HUB - Grow a Garden
--- //   Fitur: Visual/ESP Tanaman
+-- //   MOON HUB - Grow a Garden
+-- //   Dummy Item Spawner (Visual Only / Local)
+-- //   ⚠️ Hanya terlihat di layar sendiri
 -- // ================================================
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-
-local ESPEnabled = false
-local ESPLabels = {}
 
 local function GetChar() return LocalPlayer.Character end
 local function GetHRP() local c = GetChar() return c and c:FindFirstChild("HumanoidRootPart") end
@@ -23,138 +20,132 @@ local function Notify(title, text)
     end)
 end
 
--- Warna tiap jenis tanaman
-local PlantColors = {
-    ["Carrot"]     = Color3.fromRGB(255, 140, 0),
-    ["Strawberry"] = Color3.fromRGB(255, 60, 80),
-    ["Blueberry"]  = Color3.fromRGB(80, 80, 255),
-    ["Tomato"]     = Color3.fromRGB(220, 50, 50),
-    ["Corn"]       = Color3.fromRGB(255, 220, 0),
-    ["Watermelon"] = Color3.fromRGB(80, 200, 80),
-    ["Pumpkin"]    = Color3.fromRGB(255, 120, 30),
-    ["Grape"]      = Color3.fromRGB(160, 80, 200),
-    ["Sunflower"]  = Color3.fromRGB(255, 230, 0),
-    ["Rose"]       = Color3.fromRGB(255, 80, 120),
-    ["Daffodil"]   = Color3.fromRGB(255, 240, 80),
-    ["Cactus"]     = Color3.fromRGB(60, 180, 60),
-    ["Mushroom"]   = Color3.fromRGB(180, 100, 60),
-    ["Bamboo"]     = Color3.fromRGB(100, 200, 80),
-    ["Apple"]      = Color3.fromRGB(220, 60, 60),
-    ["Mango"]      = Color3.fromRGB(255, 180, 0),
-    ["Coconut"]    = Color3.fromRGB(180, 140, 80),
-    ["Default"]    = Color3.fromRGB(150, 220, 150),
+local SpawnedItems = {}
+
+-- Item Data
+local Items = {
+    Seeds = {
+        {name = "Carrot Seed", color = Color3.fromRGB(255,140,0), icon = "🥕", shape = "ball"},
+        {name = "Strawberry Seed", color = Color3.fromRGB(255,60,80), icon = "🍓", shape = "ball"},
+        {name = "Blueberry Seed", color = Color3.fromRGB(80,80,255), icon = "🫐", shape = "ball"},
+        {name = "Tomato Seed", color = Color3.fromRGB(220,50,50), icon = "🍅", shape = "ball"},
+        {name = "Corn Seed", color = Color3.fromRGB(255,220,0), icon = "🌽", shape = "ball"},
+        {name = "Watermelon Seed", color = Color3.fromRGB(80,200,80), icon = "🍉", shape = "ball"},
+        {name = "Pumpkin Seed", color = Color3.fromRGB(255,120,30), icon = "🎃", shape = "ball"},
+        {name = "Grape Seed", color = Color3.fromRGB(160,80,200), icon = "🍇", shape = "ball"},
+        {name = "Sunflower Seed", color = Color3.fromRGB(255,230,0), icon = "🌻", shape = "ball"},
+        {name = "Rose Seed", color = Color3.fromRGB(255,80,120), icon = "🌹", shape = "ball"},
+    },
+    Eggs = {
+        {name = "Common Egg", color = Color3.fromRGB(200,200,200), icon = "🥚", shape = "egg"},
+        {name = "Rare Egg", color = Color3.fromRGB(80,120,255), icon = "🥚", shape = "egg"},
+        {name = "Epic Egg", color = Color3.fromRGB(180,80,255), icon = "🥚", shape = "egg"},
+        {name = "Legendary Egg", color = Color3.fromRGB(255,200,0), icon = "🥚", shape = "egg"},
+        {name = "Mythical Egg", color = Color3.fromRGB(255,80,80), icon = "🥚", shape = "egg"},
+        {name = "Divine Egg", color = Color3.fromRGB(255,255,255), icon = "🥚", shape = "egg"},
+    },
+    Sprinklers = {
+        {name = "Basic Sprinkler", color = Color3.fromRGB(100,180,255), icon = "💧", shape = "box"},
+        {name = "Advanced Sprinkler", color = Color3.fromRGB(0,120,255), icon = "💦", shape = "box"},
+        {name = "Golden Sprinkler", color = Color3.fromRGB(255,200,0), icon = "✨", shape = "box"},
+        {name = "Master Sprinkler", color = Color3.fromRGB(255,80,80), icon = "🌊", shape = "box"},
+    },
 }
 
-local function GetPlantColor(name)
-    for k, v in pairs(PlantColors) do
-        if name:lower():find(k:lower()) then return v end
-    end
-    return PlantColors["Default"]
-end
-
-local function GetDistance(part)
+-- Spawn dummy item di depan karakter
+local function SpawnDummyItem(itemData)
     local hrp = GetHRP()
-    if hrp and part then
-        return math.floor((hrp.Position - part.Position).Magnitude)
-    end
-    return 0
-end
+    if not hrp then return end
 
-local function ClearESP()
-    for _, label in pairs(ESPLabels) do
-        if label and label.Parent then label:Destroy() end
-    end
-    ESPLabels = {}
-end
+    local part = Instance.new("Part")
+    part.Name = "DummyItem_" .. itemData.name
+    part.Anchored = false
+    part.CanCollide = false
+    part.Material = Enum.Material.SmoothPlastic
+    part.BrickColor = BrickColor.new(itemData.color)
+    part.Color = itemData.color
 
-local function CreateESPLabel(part, name)
-    local bill = Instance.new("BillboardGui")
-    bill.Name = "ESP_" .. name
-    bill.Size = UDim2.new(0, 120, 0, 40)
-    bill.StudsOffset = Vector3.new(0, 3, 0)
+    if itemData.shape == "ball" then
+        part.Shape = Enum.PartType.Ball
+        part.Size = Vector3.new(0.8, 0.8, 0.8)
+    elseif itemData.shape == "egg" then
+        part.Shape = Enum.PartType.Ball
+        part.Size = Vector3.new(0.7, 0.9, 0.7)
+    else
+        part.Shape = Enum.PartType.Block
+        part.Size = Vector3.new(0.8, 0.6, 0.8)
+    end
+
+    -- Spawn di depan karakter
+    local spawnPos = hrp.CFrame * CFrame.new(0, 1, -3)
+    part.CFrame = spawnPos
+    part.Parent = workspace
+
+    -- Label nama
+    local bill = Instance.new("BillboardGui", part)
+    bill.Size = UDim2.new(0, 100, 0, 30)
+    bill.StudsOffset = Vector3.new(0, 1.2, 0)
     bill.AlwaysOnTop = true
-    bill.Parent = part
 
     local bg = Instance.new("Frame", bill)
     bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(10, 10, 16)
+    bg.BackgroundColor3 = Color3.fromRGB(10,10,16)
     bg.BackgroundTransparency = 0.3
     Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 6)
     local bgStroke = Instance.new("UIStroke", bg)
-    bgStroke.Color = GetPlantColor(name)
-    bgStroke.Thickness = 1.2
-    bgStroke.Transparency = 0.2
+    bgStroke.Color = itemData.color
+    bgStroke.Thickness = 1
 
-    local nameLabel = Instance.new("TextLabel", bg)
-    nameLabel.Size = UDim2.new(1, 0, 0.6, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = "🌱 " .. name
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 11
-    nameLabel.TextColor3 = GetPlantColor(name)
-    nameLabel.TextScaled = false
+    local label = Instance.new("TextLabel", bg)
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = itemData.icon .. " " .. itemData.name
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 9
+    label.TextColor3 = itemData.color
+    label.TextScaled = false
 
-    local distLabel = Instance.new("TextLabel", bg)
-    distLabel.Name = "Dist"
-    distLabel.Size = UDim2.new(1, 0, 0.4, 0)
-    distLabel.Position = UDim2.new(0, 0, 0.6, 0)
-    distLabel.BackgroundTransparency = 1
-    distLabel.Font = Enum.Font.Gotham
-    distLabel.TextSize = 9
-    distLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+    -- Glow effect
+    local light = Instance.new("PointLight", part)
+    light.Color = itemData.color
+    light.Brightness = 2
+    light.Range = 5
 
-    table.insert(ESPLabels, bill)
-    return distLabel
+    -- Float animation
+    local float = Instance.new("BodyPosition", part)
+    float.MaxForce = Vector3.new(0, 5000, 0)
+    float.D = 500
+
+    local baseY = part.Position.Y
+    local t = 0
+    local conn
+    conn = game:GetService("RunService").Heartbeat:Connect(function(dt)
+        t = t + dt
+        if part and part.Parent then
+            float.Position = Vector3.new(part.Position.X, baseY + math.sin(t * 2) * 0.3, part.Position.Z)
+        else
+            conn:Disconnect()
+        end
+    end)
+
+    table.insert(SpawnedItems, part)
+    Notify(itemData.icon .. " Spawned", itemData.name .. " muncul di depanmu!")
+    return part
 end
 
-local function ScanPlants()
-    ClearESP()
-    if not ESPEnabled then return end
-
-    -- Scan workspace untuk tanaman
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            local name = obj.Name
-            -- Cek nama yang mengandung kata tanaman/plant
-            if name:lower():find("plant") or name:lower():find("crop") or name:lower():find("seed")
-                or name:lower():find("carrot") or name:lower():find("strawberry")
-                or name:lower():find("tomato") or name:lower():find("corn")
-                or name:lower():find("blueberry") or name:lower():find("watermelon")
-                or name:lower():find("pumpkin") or name:lower():find("grape")
-                or name:lower():find("sunflower") or name:lower():find("rose")
-                or name:lower():find("apple") or name:lower():find("mango")
-                or name:lower():find("mushroom") or name:lower():find("bamboo")
-                or name:lower():find("flower") or name:lower():find("fruit")
-                or name:lower():find("tree") or name:lower():find("bush") then
-
-                local part = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                if part then
-                    CreateESPLabel(part, name)
-                end
-            end
-        end
+local function ClearAllItems()
+    for _, item in pairs(SpawnedItems) do
+        if item and item.Parent then item:Destroy() end
     end
+    SpawnedItems = {}
+    Notify("🗑️ Clear", "Semua item dihapus!")
 end
-
--- Update jarak tiap frame
-RunService.RenderStepped:Connect(function()
-    if not ESPEnabled then return end
-    for _, bill in pairs(ESPLabels) do
-        if bill and bill.Parent then
-            local dist = bill.Parent
-            local distLabel = bill:FindFirstChild("Frame") and bill.Frame:FindFirstChild("Dist")
-            if distLabel then
-                distLabel.Text = GetDistance(bill.Parent) .. " studs"
-            end
-        end
-    end
-end)
 
 -- ================================================
 -- GUI
 -- ================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GrowGardenESP"
+ScreenGui.Name = "MoonHubSpawner"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
@@ -162,8 +153,8 @@ pcall(function() ScreenGui.Parent = game.CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer.PlayerGui end
 
 local Window = Instance.new("Frame", ScreenGui)
-Window.Size = UDim2.new(0, 520, 0, 360)
-Window.Position = UDim2.new(0.5, -260, 0.5, -180)
+Window.Size = UDim2.new(0, 540, 0, 400)
+Window.Position = UDim2.new(0.5, -270, 0.5, -200)
 Window.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
 Window.BorderSizePixel = 0
 Window.Active = true
@@ -184,10 +175,10 @@ local TopTitle = Instance.new("TextLabel", TopBar)
 TopTitle.Size = UDim2.new(1, -80, 1, 0)
 TopTitle.Position = UDim2.new(0, 14, 0, 0)
 TopTitle.BackgroundTransparency = 1
-TopTitle.Text = "🌱  Grow a Garden  |  Visual ESP"
+TopTitle.Text = "🌕  Moon Hub  |  Item Spawner  ⚠️ Visual Only"
 TopTitle.Font = Enum.Font.GothamBold
-TopTitle.TextSize = 13
-TopTitle.TextColor3 = Color3.fromRGB(150, 255, 150)
+TopTitle.TextSize = 12
+TopTitle.TextColor3 = Color3.fromRGB(200, 255, 180)
 TopTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local function MakeTopBtn(pos, color, txt)
@@ -243,13 +234,13 @@ local function NewPage(name)
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.Visible = false
     local layout = Instance.new("UIListLayout", page)
-    layout.Padding = UDim.new(0, 8)
+    layout.Padding = UDim.new(0, 6)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     local pad = Instance.new("UIPadding", page)
-    pad.PaddingTop = UDim.new(0, 12)
-    pad.PaddingLeft = UDim.new(0, 12)
-    pad.PaddingRight = UDim.new(0, 12)
-    pad.PaddingBottom = UDim.new(0, 12)
+    pad.PaddingTop = UDim.new(0, 10)
+    pad.PaddingLeft = UDim.new(0, 10)
+    pad.PaddingRight = UDim.new(0, 10)
+    pad.PaddingBottom = UDim.new(0, 10)
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
     end)
@@ -348,223 +339,175 @@ local function SectionHeader(page, txt)
     L.TextXAlignment = Enum.TextXAlignment.Left
 end
 
-local function ToggleRow(page, icon, title, subtitle, color, callback)
-    local Row = Instance.new("Frame", page)
-    Row.Size = UDim2.new(1, 0, 0, subtitle and 54 or 44)
+-- Item Button
+local function ItemBtn(page, itemData)
+    local Row = Instance.new("TextButton", page)
+    Row.Size = UDim2.new(1, 0, 0, 44)
     Row.BackgroundColor3 = Color3.fromRGB(18, 24, 18)
     Row.BackgroundTransparency = 0.2
+    Row.Text = ""
+    Row.AutoButtonColor = false
     Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 8)
+    local RStroke = Instance.new("UIStroke", Row)
+    RStroke.Color = itemData.color
+    RStroke.Thickness = 1
+    RStroke.Transparency = 0.7
 
     local IconL = Instance.new("TextLabel", Row)
-    IconL.Size = UDim2.new(0, 30, 1, 0)
-    IconL.Position = UDim2.new(0, 10, 0, 0)
+    IconL.Size = UDim2.new(0, 34, 1, 0)
+    IconL.Position = UDim2.new(0, 8, 0, 0)
     IconL.BackgroundTransparency = 1
-    IconL.Text = icon
-    IconL.TextSize = 18
+    IconL.Text = itemData.icon
+    IconL.TextSize = 20
     IconL.Font = Enum.Font.GothamBold
     IconL.TextColor3 = Color3.fromRGB(255,255,255)
 
-    local TitleL = Instance.new("TextLabel", Row)
-    TitleL.Size = UDim2.new(1, -90, 0, 22)
-    TitleL.Position = UDim2.new(0, 44, 0, subtitle and 8 or 11)
-    TitleL.BackgroundTransparency = 1
-    TitleL.Text = title
-    TitleL.Font = Enum.Font.GothamSemibold
-    TitleL.TextSize = 13
-    TitleL.TextColor3 = Color3.fromRGB(210, 240, 210)
-    TitleL.TextXAlignment = Enum.TextXAlignment.Left
+    local NameL = Instance.new("TextLabel", Row)
+    NameL.Size = UDim2.new(1, -100, 1, 0)
+    NameL.Position = UDim2.new(0, 46, 0, 0)
+    NameL.BackgroundTransparency = 1
+    NameL.Text = itemData.name
+    NameL.Font = Enum.Font.GothamSemibold
+    NameL.TextSize = 13
+    NameL.TextColor3 = itemData.color
+    NameL.TextXAlignment = Enum.TextXAlignment.Left
 
-    if subtitle then
-        local SubL = Instance.new("TextLabel", Row)
-        SubL.Size = UDim2.new(1, -90, 0, 16)
-        SubL.Position = UDim2.new(0, 44, 0, 28)
-        SubL.BackgroundTransparency = 1
-        SubL.Text = subtitle
-        SubL.Font = Enum.Font.Gotham
-        SubL.TextSize = 10
-        SubL.TextColor3 = Color3.fromRGB(100, 140, 100)
-        SubL.TextXAlignment = Enum.TextXAlignment.Left
-    end
+    local SpawnBtn = Instance.new("TextButton", Row)
+    SpawnBtn.Size = UDim2.new(0, 65, 0, 26)
+    SpawnBtn.Position = UDim2.new(1, -74, 0.5, -13)
+    SpawnBtn.BackgroundColor3 = itemData.color
+    SpawnBtn.Text = "SPAWN"
+    SpawnBtn.Font = Enum.Font.GothamBold
+    SpawnBtn.TextSize = 11
+    SpawnBtn.TextColor3 = Color3.fromRGB(0,0,0)
+    Instance.new("UICorner", SpawnBtn).CornerRadius = UDim.new(0, 6)
 
-    local PillBG = Instance.new("Frame", Row)
-    PillBG.Size = UDim2.new(0, 44, 0, 24)
-    PillBG.Position = UDim2.new(1, -56, 0.5, -12)
-    PillBG.BackgroundColor3 = Color3.fromRGB(40, 50, 40)
-    Instance.new("UICorner", PillBG).CornerRadius = UDim.new(1, 0)
-
-    local PillDot = Instance.new("Frame", PillBG)
-    PillDot.Size = UDim2.new(0, 18, 0, 18)
-    PillDot.Position = UDim2.new(0, 3, 0.5, -9)
-    PillDot.BackgroundColor3 = Color3.fromRGB(140, 160, 140)
-    Instance.new("UICorner", PillDot).CornerRadius = UDim.new(1, 0)
-
-    local toggled = false
-    local function Toggle(state)
-        toggled = state
-        if state then
-            TweenService:Create(PillBG, TweenInfo.new(0.2), {BackgroundColor3 = color or Color3.fromRGB(60,180,60)}):Play()
-            TweenService:Create(PillDot, TweenInfo.new(0.2), {Position = UDim2.new(0,23,0.5,-9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
-        else
-            TweenService:Create(PillBG, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40,50,40)}):Play()
-            TweenService:Create(PillDot, TweenInfo.new(0.2), {Position = UDim2.new(0,3,0.5,-9), BackgroundColor3 = Color3.fromRGB(140,160,140)}):Play()
-        end
-    end
-
-    local ClickArea = Instance.new("TextButton", Row)
-    ClickArea.Size = UDim2.new(1, 0, 1, 0)
-    ClickArea.BackgroundTransparency = 1
-    ClickArea.Text = ""
-    ClickArea.MouseButton1Click:Connect(function()
-        toggled = not toggled
-        Toggle(toggled)
-        if callback then callback(toggled) end
+    Row.MouseEnter:Connect(function()
+        TweenService:Create(Row, TweenInfo.new(0.15), {BackgroundTransparency = 0.05, BackgroundColor3 = Color3.fromRGB(25,35,25)}):Play()
+        TweenService:Create(RStroke, TweenInfo.new(0.15), {Transparency = 0.3}):Play()
     end)
+    Row.MouseLeave:Connect(function()
+        TweenService:Create(Row, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = Color3.fromRGB(18,24,18)}):Play()
+        TweenService:Create(RStroke, TweenInfo.new(0.15), {Transparency = 0.7}):Play()
+    end)
+
+    local function DoSpawn()
+        SpawnDummyItem(itemData)
+        SpawnBtn.Text = "✓"
+        task.wait(1)
+        SpawnBtn.Text = "SPAWN"
+    end
+
+    Row.MouseButton1Click:Connect(DoSpawn)
+    SpawnBtn.MouseButton1Click:Connect(DoSpawn)
 end
 
 -- ================================================
 -- PAGES
 -- ================================================
-SideLabel("  VISUAL")
-SideBtn("👁️", "ESP Tanaman", "ESP")
-SideBtn("🎨", "Warna", "Colors")
-SideLabel("  INFO")
-SideBtn("ℹ️", "About", "About")
+SideLabel("  SPAWNER")
+SideBtn("🌱", "Seed", "Seeds")
+SideBtn("🥚", "Egg", "Eggs")
+SideBtn("💧", "Sprinkler", "Sprinklers")
+SideLabel("  TOOLS")
+SideBtn("🗑️", "Clear All", "Clear")
+SideBtn("ℹ️", "Info", "Info")
 
--- ESP PAGE
-local ESPPage = NewPage("ESP")
-SectionHeader(ESPPage, "  VISUAL / ESP TANAMAN")
-
-ToggleRow(ESPPage, "👁️", "ESP Tanaman", "Tampilkan nama & jarak tanaman", Color3.fromRGB(60,200,60), function(v)
-    ESPEnabled = v
-    if v then
-        ScanPlants()
-        Notify("👁️ ESP", "Aktif! Scan " .. #ESPLabels .. " tanaman ditemukan")
-    else
-        ClearESP()
-        Notify("👁️ ESP", "Dimatikan")
-    end
-end)
-
--- Scan Button
-local ScanBtn = Instance.new("TextButton", ESPPage)
-ScanBtn.Size = UDim2.new(1, 0, 0, 40)
-ScanBtn.BackgroundColor3 = Color3.fromRGB(30, 70, 30)
-ScanBtn.Text = "🔍 Scan Ulang Tanaman"
-ScanBtn.Font = Enum.Font.GothamBold
-ScanBtn.TextSize = 13
-ScanBtn.TextColor3 = Color3.fromRGB(150, 255, 150)
-Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
-local ScanStroke = Instance.new("UIStroke", ScanBtn)
-ScanStroke.Color = Color3.fromRGB(60, 180, 60) ScanStroke.Thickness = 1 ScanStroke.Transparency = 0.5
-
-ScanBtn.MouseButton1Click:Connect(function()
-    if not ESPEnabled then
-        Notify("❌", "Aktifkan ESP dulu!")
-        return
-    end
-    ScanPlants()
-    Notify("🔍 Scan", #ESPLabels .. " tanaman ditemukan!")
-end)
-
--- Count Label
-local CountFrame = Instance.new("Frame", ESPPage)
-CountFrame.Size = UDim2.new(1, 0, 0, 50)
-CountFrame.BackgroundColor3 = Color3.fromRGB(18, 30, 18)
-CountFrame.BackgroundTransparency = 0.2
-Instance.new("UICorner", CountFrame).CornerRadius = UDim.new(0, 8)
-local CStroke = Instance.new("UIStroke", CountFrame)
-CStroke.Color = Color3.fromRGB(60,180,60) CStroke.Thickness = 1 CStroke.Transparency = 0.6
-
-local CountLabel = Instance.new("TextLabel", CountFrame)
-CountLabel.Size = UDim2.new(1, -16, 1, 0)
-CountLabel.Position = UDim2.new(0, 8, 0, 0)
-CountLabel.BackgroundTransparency = 1
-CountLabel.Text = "🌱 Tanaman terdeteksi: 0\n📍 Update otomatis setiap 5 detik"
-CountLabel.Font = Enum.Font.GothamSemibold
-CountLabel.TextSize = 12
-CountLabel.TextColor3 = Color3.fromRGB(150, 220, 150)
-CountLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Auto rescan every 5 seconds
-task.spawn(function()
-    while task.wait(5) do
-        if ESPEnabled then
-            ScanPlants()
-            CountLabel.Text = "🌱 Tanaman terdeteksi: " .. #ESPLabels .. "\n📍 Update otomatis setiap 5 detik"
-        end
-    end
-end)
-
--- COLORS PAGE
-local ColorsPage = NewPage("Colors")
-SectionHeader(ColorsPage, "  WARNA ESP PER TANAMAN")
-
-local colorList = {
-    {"🥕 Carrot", Color3.fromRGB(255,140,0)},
-    {"🍓 Strawberry", Color3.fromRGB(255,60,80)},
-    {"🫐 Blueberry", Color3.fromRGB(80,80,255)},
-    {"🍅 Tomato", Color3.fromRGB(220,50,50)},
-    {"🌽 Corn", Color3.fromRGB(255,220,0)},
-    {"🍉 Watermelon", Color3.fromRGB(80,200,80)},
-    {"🎃 Pumpkin", Color3.fromRGB(255,120,30)},
-    {"🍇 Grape", Color3.fromRGB(160,80,200)},
-    {"🌻 Sunflower", Color3.fromRGB(255,230,0)},
-    {"🌹 Rose", Color3.fromRGB(255,80,120)},
-    {"🍎 Apple", Color3.fromRGB(220,60,60)},
-    {"🥭 Mango", Color3.fromRGB(255,180,0)},
-}
-
-for _, data in pairs(colorList) do
-    local Row = Instance.new("Frame", ColorsPage)
-    Row.Size = UDim2.new(1, 0, 0, 36)
-    Row.BackgroundColor3 = Color3.fromRGB(18, 24, 18)
-    Row.BackgroundTransparency = 0.2
-    Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 8)
-
-    local NameL = Instance.new("TextLabel", Row)
-    NameL.Size = UDim2.new(1, -50, 1, 0)
-    NameL.Position = UDim2.new(0, 12, 0, 0)
-    NameL.BackgroundTransparency = 1
-    NameL.Text = data[1]
-    NameL.Font = Enum.Font.GothamSemibold
-    NameL.TextSize = 12
-    NameL.TextColor3 = data[2]
-    NameL.TextXAlignment = Enum.TextXAlignment.Left
-
-    local ColorDot = Instance.new("Frame", Row)
-    ColorDot.Size = UDim2.new(0, 20, 0, 20)
-    ColorDot.Position = UDim2.new(1, -30, 0.5, -10)
-    ColorDot.BackgroundColor3 = data[2]
-    Instance.new("UICorner", ColorDot).CornerRadius = UDim.new(1, 0)
+-- SEEDS PAGE
+local SeedsPage = NewPage("Seeds")
+SectionHeader(SeedsPage, "  🌱 SEED SPAWNER")
+for _, item in pairs(Items.Seeds) do
+    ItemBtn(SeedsPage, item)
 end
 
--- ABOUT PAGE
-local AboutPage = NewPage("About")
-local ABox = Instance.new("Frame", AboutPage)
-ABox.Size = UDim2.new(1,0,0,130)
-ABox.BackgroundColor3 = Color3.fromRGB(18,28,18)
-ABox.BackgroundTransparency = 0.2
-Instance.new("UICorner", ABox).CornerRadius = UDim.new(0,10)
-local AStroke = Instance.new("UIStroke",ABox)
-AStroke.Color = Color3.fromRGB(60,180,60) AStroke.Thickness=1 AStroke.Transparency=0.5
-local AText = Instance.new("TextLabel",ABox)
-AText.Size = UDim2.new(1,-20,1,-20) AText.Position = UDim2.new(0,10,0,10)
-AText.BackgroundTransparency = 1
-AText.Text = "🌱  Grow a Garden - Visual ESP\nBy: Mustafa Hub\n\nFitur:\n👁️ ESP nama tanaman di atas objek\n📍 Jarak tanaman dari karakter\n🎨 Warna berbeda tiap jenis tanaman\n🔍 Auto scan ulang tiap 5 detik"
-AText.Font = Enum.Font.GothamSemibold AText.TextSize = 12
-AText.TextColor3 = Color3.fromRGB(150,220,150)
-AText.TextXAlignment = Enum.TextXAlignment.Left
-AText.TextYAlignment = Enum.TextYAlignment.Top
+-- EGGS PAGE
+local EggsPage = NewPage("Eggs")
+SectionHeader(EggsPage, "  🥚 EGG SPAWNER")
+for _, item in pairs(Items.Eggs) do
+    ItemBtn(EggsPage, item)
+end
+
+-- SPRINKLERS PAGE
+local SprinklersPage = NewPage("Sprinklers")
+SectionHeader(SprinklersPage, "  💧 SPRINKLER SPAWNER")
+for _, item in pairs(Items.Sprinklers) do
+    ItemBtn(SprinklersPage, item)
+end
+
+-- CLEAR PAGE
+local ClearPage = NewPage("Clear")
+SectionHeader(ClearPage, "  🗑️ CLEAR ITEMS")
+
+local WarningBox = Instance.new("Frame", ClearPage)
+WarningBox.Size = UDim2.new(1, 0, 0, 60)
+WarningBox.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+WarningBox.BackgroundTransparency = 0.3
+Instance.new("UICorner", WarningBox).CornerRadius = UDim.new(0, 8)
+local WStroke2 = Instance.new("UIStroke", WarningBox)
+WStroke2.Color = Color3.fromRGB(255,80,80) WStroke2.Thickness = 1 WStroke2.Transparency = 0.5
+local WarnText = Instance.new("TextLabel", WarningBox)
+WarnText.Size = UDim2.new(1,-16,1,-16) WarnText.Position = UDim2.new(0,8,0,8)
+WarnText.BackgroundTransparency = 1
+WarnText.Text = "⚠️ Semua item visual yang sudah di-spawn\nakan dihapus dari workspace!"
+WarnText.Font = Enum.Font.GothamSemibold WarnText.TextSize = 12
+WarnText.TextColor3 = Color3.fromRGB(255,150,150)
+WarnText.TextXAlignment = Enum.TextXAlignment.Left WarnText.TextYAlignment = Enum.TextYAlignment.Top
+
+local ClearAllBtn = Instance.new("TextButton", ClearPage)
+ClearAllBtn.Size = UDim2.new(1, 0, 0, 44)
+ClearAllBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+ClearAllBtn.Text = "🗑️ Hapus Semua Item Visual"
+ClearAllBtn.Font = Enum.Font.GothamBold
+ClearAllBtn.TextSize = 13
+ClearAllBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", ClearAllBtn).CornerRadius = UDim.new(0, 8)
+ClearAllBtn.MouseButton1Click:Connect(function()
+    ClearAllItems()
+end)
+
+local CountLabel = Instance.new("TextLabel", ClearPage)
+CountLabel.Size = UDim2.new(1, 0, 0, 30)
+CountLabel.BackgroundTransparency = 1
+CountLabel.Font = Enum.Font.GothamSemibold
+CountLabel.TextSize = 12
+CountLabel.TextColor3 = Color3.fromRGB(150, 200, 150)
+CountLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    local count = 0
+    for _, item in pairs(SpawnedItems) do
+        if item and item.Parent then count = count + 1 end
+    end
+    CountLabel.Text = "  📦 Item aktif: " .. count
+end)
+
+-- INFO PAGE
+local InfoPage = NewPage("Info")
+local IBox = Instance.new("Frame", InfoPage)
+IBox.Size = UDim2.new(1,0,0,160)
+IBox.BackgroundColor3 = Color3.fromRGB(18,28,18)
+IBox.BackgroundTransparency = 0.2
+Instance.new("UICorner", IBox).CornerRadius = UDim.new(0,10)
+local IStroke = Instance.new("UIStroke",IBox)
+IStroke.Color = Color3.fromRGB(60,180,60) IStroke.Thickness=1 IStroke.Transparency=0.5
+local IText = Instance.new("TextLabel",IBox)
+IText.Size = UDim2.new(1,-20,1,-20) IText.Position = UDim2.new(0,10,0,10)
+IText.BackgroundTransparency = 1
+IText.Text = "🌕  Moon Hub - Item Spawner\nBy: Mustafa\n\n⚠️ PENTING:\nItem yang di-spawn HANYA VISUAL!\nHanya terlihat di layar kamu sendiri.\nTidak mempengaruhi game server.\n\n✅ Seed, Egg, Sprinkler tersedia\n🌊 Item float & glowing effect\n🗑️ Bisa dihapus kapan saja"
+IText.Font = Enum.Font.GothamSemibold IText.TextSize = 11
+IText.TextColor3 = Color3.fromRGB(150,220,150)
+IText.TextXAlignment = Enum.TextXAlignment.Left
+IText.TextYAlignment = Enum.TextYAlignment.Top
 
 -- ================================================
--- CLOSE & MINIMIZE
+-- OPEN BUTTON & CONTROLS
 -- ================================================
 local OpenBtn = Instance.new("TextButton", ScreenGui)
 OpenBtn.Size = UDim2.new(0,46,0,46)
 OpenBtn.Position = UDim2.new(0,8,0.5,-23)
 OpenBtn.BackgroundColor3 = Color3.fromRGB(15,25,15)
 OpenBtn.BackgroundTransparency = 0.1
-OpenBtn.Text = "🌱"
+OpenBtn.Text = "🌕"
 OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.TextSize = 22
 OpenBtn.TextColor3 = Color3.fromRGB(100,220,100)
@@ -576,18 +519,15 @@ OStroke.Color = Color3.fromRGB(60,180,60) OStroke.Thickness = 1.5
 OpenBtn.MouseButton1Click:Connect(function()
     Window.Visible = true OpenBtn.Visible = false
 end)
-
 CloseBtn.MouseButton1Click:Connect(function()
     Window.Visible = false OpenBtn.Visible = true
-    ClearESP()
-    ESPEnabled = false
 end)
 
 local Minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     Minimized = not Minimized
     TweenService:Create(Window, TweenInfo.new(0.3), {
-        Size = Minimized and UDim2.new(0,520,0,36) or UDim2.new(0,520,0,360)
+        Size = Minimized and UDim2.new(0,540,0,36) or UDim2.new(0,540,0,400)
     }):Play()
 end)
 
@@ -599,8 +539,8 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
-Pages["ESP"].Visible = true
-CurrentPage = "ESP"
-if SideBtns["ESP"] then SideBtns["ESP"](true) end
+Pages["Seeds"].Visible = true
+CurrentPage = "Seeds"
+if SideBtns["Seeds"] then SideBtns["Seeds"](true) end
 
-Notify("🌱 Grow a Garden", "Visual ESP siap! Aktifkan ESP di menu.")
+Notify("🌕 Moon Hub", "Item Spawner siap! ⚠️ Visual Only")
